@@ -24,6 +24,9 @@ class RodiConverter {
       'xspan': 'span',
       'xdiv': 'div',
       'ximage': 'img',
+      'xparagraph': 'p',
+      'xheading': 'h3',
+      'xlink': 'a',
 
       // 폼 컴포넌트 (특별 처리 필요)
       'xradio': 'input',
@@ -31,10 +34,20 @@ class RodiConverter {
       'xslider': 'input',
       'xselectbox': 'select',
       'xoption': 'option',
+      'xtextarea': 'textarea',
 
       // 복합 컴포넌트
       'xtablelist': 'div',
-      'xpaginate': 'div'
+      'xpaginate': 'div',
+      'xcontainer': 'div',
+      'xsection': 'section'
+    };
+
+    // 변환 통계
+    this.stats = {
+      totalConversions: 0,
+      componentCounts: {},
+      errors: []
     };
   }
 
@@ -44,15 +57,20 @@ class RodiConverter {
    * @returns {string} 변환된 표준 HTML
    */
   convert(htmlString) {
+    this.stats.totalConversions++;
+    this.stats.errors = [];
     let result = htmlString;
+
+    try {
 
     // === 1단계: 특별 처리가 필요한 컴포넌트들 ===
 
-    // XButton - text 속성을 버튼 내용으로 변환
+    // XButton - text 속성을 버튼 내용으로 변환, type을 class로 변환
     result = result.replace(/<XButton([^>]*?)text="([^"]*)"([^>]*?)\/?>(?:<\/XButton>)?/gi,
       (match, attrs1, text, attrs2) => {
         const allAttrs = (attrs1 + attrs2).replace(/text="[^"]*"/g, '').trim();
-        return `<button ${allAttrs}>${text}</button>`;
+        const convertedAttrs = this.convertAttributes(allAttrs);
+        return `<button ${convertedAttrs}>${text}</button>`;
       }
     );
 
@@ -132,13 +150,48 @@ class RodiConverter {
     // === 4단계: CSS 스타일 추가 ===
     result = this.addStyles(result);
 
+    } catch (error) {
+      this.stats.errors.push({
+        message: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
+      console.error('❌ 변환 중 오류 발생:', error);
+      throw error;
+    }
+
     return result;
+  }
+
+  /**
+   * 변환 통계 반환
+   * @returns {object} 변환 통계 정보
+   */
+  getStats() {
+    return {
+      ...this.stats,
+      componentCounts: Object.keys(this.componentMap).reduce((acc, key) => {
+        acc[key] = (acc[key] || 0);
+        return acc;
+      }, {})
+    };
+  }
+
+  /**
+   * 통계 초기화
+   */
+  resetStats() {
+    this.stats = {
+      totalConversions: 0,
+      componentCounts: {},
+      errors: []
+    };
   }
 
   convertAttributes(attrString) {
     if (!attrString) return '';
 
-    return attrString
+    let result = attrString
       .replace(/className=/gi, 'class=')
       .replace(/isColumnHeader=/gi, 'data-column-header=')
       .replace(/isHeader=/gi, 'data-header=')
@@ -147,130 +200,35 @@ class RodiConverter {
       .replace(/useAddButton=/gi, 'data-use-add-button=')
       .replace(/useDeleteButton=/gi, 'data-use-delete-button=')
       .replace(/selected/gi, 'selected="selected"');
+
+    // XButton의 type 속성을 class로 변환 (type="primary" -> class="btn primary")
+    const typeMatch = result.match(/type="([^"]*)"/i);
+    if (typeMatch) {
+      const typeValue = typeMatch[1];
+      // type 속성 제거
+      result = result.replace(/type="[^"]*"/gi, '');
+
+      // 기존 class 속성이 있으면 추가, 없으면 생성
+      const classMatch = result.match(/class="([^"]*)"/i);
+      if (classMatch) {
+        // 기존 class에 btn과 type 값 추가
+        const existingClasses = classMatch[1];
+        result = result.replace(/class="[^"]*"/i, `class="btn ${typeValue} ${existingClasses}"`);
+      } else {
+        // class 속성 새로 생성
+        result = `class="btn ${typeValue}" ${result}`;
+      }
+    }
+
+    return result;
   }
 
   addStyles(html) {
+    // V3 프로젝트 스타일을 server.js에서 로드하므로 폴백 스타일 제거
+    // PID 게인 관련 레이아웃 스타일만 유지
     const styles = `
 <style>
-/* 기본 테이블 스타일 */
-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-family: Arial, sans-serif;
-}
-
-tr {
-  display: table-row;
-}
-
-td {
-  display: table-cell;
-  border: 1px solid #ddd;
-  padding: 4px;
-  vertical-align: middle;
-}
-
-td[data-column-header="true"] {
-  background-color: #f5f5f5;
-  font-weight: bold;
-  text-align: left;
-  padding-left: 10px;
-}
-
-/* 버튼 스타일 */
-button {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-button:hover {
-  background: #0056b3;
-}
-
-/* 테이블 안의 버튼 특별 스타일 */
-td > button {
-  width: 70%;
-  margin: 0 auto;
-  height: 30px;
-  display: block;
-}
-
-/* Input 스타일 */
-input {
-  border: 1px solid #ccc;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  box-sizing: border-box;
-}
-
-input:focus {
-  border-color: #007bff;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
-}
-
-/* Radio & Checkbox 스타일 */
-input[type="radio"], input[type="checkbox"] {
-  margin-right: 8px;
-  width: auto;
-  padding: 0;
-}
-
-label {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-
-/* Slider 스타일 */
-input[type="range"] {
-  width: 200px;
-  height: 6px;
-  background: #ddd;
-  outline: none;
-  border-radius: 3px;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  background: #007bff;
-  cursor: pointer;
-  border-radius: 50%;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  background: #007bff;
-  cursor: pointer;
-  border-radius: 50%;
-  border: none;
-}
-
-/* Select 스타일 */
-select {
-  border: 1px solid #ccc;
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  background-color: white;
-  min-width: 150px;
-}
-
-select:focus {
-  border-color: #007bff;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
-}
+/* 레이아웃 헬퍼 스타일 - V3 스타일에 영향 없음 */
 
 /* PID 게인 특화 스타일 */
 .PID-gain-container {
