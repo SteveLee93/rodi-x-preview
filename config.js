@@ -46,12 +46,12 @@ const STYLES_DIR = path.join(RODI_WEB_SVC, 'styles');
 /**
  * 프리뷰할 HTML 파일이 있는 폴더
  */
-const HTML_FOLDER = path.join(V3_ROOT, 'src/rodi/code/plugins.debug/PID_Tuning_for_AMC_2/htmlStore');
+const HTML_FOLDER = path.join(V3_ROOT, 'src/rodi/app/plugins/1.samples/source/Components/htmlStore');
 
 /**
  * 프리뷰할 HTML 파일명
  */
-const HTML_FILE = 'PIDTuningWidgetNode.html';
+const HTML_FILE = 'componentsExtensionNode.html';
 
 // ==========================================
 // 🎨 스타일 컴포넌트 매핑
@@ -63,6 +63,7 @@ const HTML_FILE = 'PIDTuningWidgetNode.html';
 const GLOBAL_STYLES = {
   'reset': path.join(STYLES_DIR, 'base/reset.scss'),
   'base': path.join(STYLES_DIR, 'base/all.scss'),
+  'rc-slider': path.join(V3_ROOT, 'src/rodi/code/services/rodi-web-svc/node_modules/rc-slider/assets/index.css'),
 };
 
 /**
@@ -75,10 +76,14 @@ const ATOMS_STYLES = {
   'Checkbox': path.join(ATOMS_COMPONENTS_DIR, 'Checkbox/Checkbox.scss'),
   'RadioButton': path.join(ATOMS_COMPONENTS_DIR, 'RadioButton/RadioButton.scss'),
   'Slider': path.join(ATOMS_COMPONENTS_DIR, 'Slider/Slider.scss'),
+  'Slider_default': path.join(ATOMS_COMPONENTS_DIR, 'Slider/Slider_default.css'),
   'Cell': path.join(ATOMS_COMPONENTS_DIR, 'Cell/Cell.scss'),
   'TableList': path.join(ATOMS_COMPONENTS_DIR, 'TableList/TableList.scss'),
   'Paginate': path.join(ATOMS_COMPONENTS_DIR, 'Paginate/Paginate.scss'),
   'ToggleCheckBox': path.join(ATOMS_COMPONENTS_DIR, 'ToggleCheckBox/ToggleCheckBox.scss'),
+  'SelectBox': path.join(RODI_WEB_SVC, 'components/molecules/SelectBox/SelectBox.scss'),
+  'Table': path.join(RODI_WEB_SVC, 'components/molecules/Table/Table.scss'),
+  'Row': path.join(ATOMS_COMPONENTS_DIR, 'Row/Row.scss'),
 };
 
 /**
