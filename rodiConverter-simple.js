@@ -65,28 +65,82 @@ class RodiConverter {
 
     // === 1단계: 특별 처리가 필요한 컴포넌트들 ===
 
-    // XButton - text 속성을 버튼 내용으로 변환, type을 class로 변환
+    // XButton - text 속성을 버튼 내용으로 변환, V3와 동일한 클래스 구조 생성
     result = result.replace(/<XButton([^>]*?)text="([^"]*)"([^>]*?)\/?>(?:<\/XButton>)?/gi,
       (match, attrs1, text, attrs2) => {
-        const allAttrs = (attrs1 + attrs2).replace(/text="[^"]*"/g, '').trim();
-        const convertedAttrs = this.convertAttributes(allAttrs);
-        return `<button ${convertedAttrs}>${text}</button>`;
+        const allAttrs = (attrs1 + attrs2).trim();
+
+        // type, visible, className, size 속성 추출
+        const typeMatch = allAttrs.match(/type="([^"]*)"/i);
+        const visibleMatch = allAttrs.match(/visible="([^"]*)"/i);
+        const classMatch = allAttrs.match(/className="([^"]*)"/i);
+        const sizeMatch = allAttrs.match(/size="([^"]*)"/i);
+
+        const type = typeMatch ? typeMatch[1] : 'default';
+        const visible = visibleMatch ? visibleMatch[1] : 'true';
+        const userClass = classMatch ? classMatch[1] : '';
+        const size = sizeMatch ? sizeMatch[1] : '';
+
+        // V3와 동일한 클래스 조합: btn + type + size + userClass + visible-show/hide
+        let classes = ['btn'];
+
+        // type 클래스 추가
+        if (type && type !== 'default') {
+          classes.push(type);
+        } else {
+          classes.push('default');
+        }
+
+        // size 클래스 추가
+        if (size === 'small') {
+          classes.push('small');
+        } else if (size === 'middle' || size === 'default') {
+          // middle은 기본이므로 추가 클래스 없음
+        }
+
+        // visible 클래스 추가 - xbutton 접두사로 컴포넌트별 스타일 적용
+        if (visible === 'false') {
+          classes.push('xbutton-visible-hide');
+        } else {
+          classes.push('xbutton-visible-show');
+        }
+
+        // 사용자 정의 클래스 추가
+        if (userClass) {
+          classes.push(userClass);
+        }
+
+        // 나머지 속성 변환 (type, visible, className, text 제외)
+        let remainingAttrs = allAttrs
+          .replace(/type="[^"]*"/gi, '')
+          .replace(/visible="[^"]*"/gi, '')
+          .replace(/className="[^"]*"/gi, '')
+          .replace(/text="[^"]*"/gi, '')
+          .trim();
+
+        // data-visible 속성 추가 (JS에서 사용)
+        remainingAttrs += ` data-visible="${visible}"`;
+
+        const convertedAttrs = this.convertAttributes(remainingAttrs);
+        const classAttr = `class="${classes.join(' ')}"`;
+
+        return `<button ${classAttr} ${convertedAttrs}>${text}</button>`;
       }
     );
 
-    // XRadio - label로 감싸고 type="radio" 추가
+    // XRadio - V3와 동일한 구조로 변환
     result = result.replace(/<XRadio([^>]*?)>([^<]*?)<\/XRadio>/gi,
       (match, attrs, content) => {
         const convertedAttrs = this.convertAttributes(attrs);
-        return `<label><input type="radio" ${convertedAttrs}> ${content}</label>`;
+        return `<label class="radio-wrapper"><input type="radio" class="hide-input" ${convertedAttrs}><span class="ico-radio"></span><span class="txt">${content}</span></label>`;
       }
     );
 
-    // XCheckBox - label로 감싸고 type="checkbox" 추가
+    // XCheckBox - V3와 동일한 구조로 변환
     result = result.replace(/<XCheckBox([^>]*?)>([^<]*?)<\/XCheckBox>/gi,
       (match, attrs, content) => {
         const convertedAttrs = this.convertAttributes(attrs);
-        return `<label><input type="checkbox" ${convertedAttrs}> ${content}</label>`;
+        return `<label class="checkbox-wrapper"><input type="checkbox" class="hide-input" ${convertedAttrs}><span class="ico-checkbox"></span><span class="txt">${content}</span></label>`;
       }
     );
 
@@ -95,6 +149,42 @@ class RodiConverter {
       (match, attrs) => {
         const convertedAttrs = this.convertAttributes(attrs);
         return `<input type="range" ${convertedAttrs}>`;
+      }
+    );
+
+    // XInput - visible 속성 처리
+    result = result.replace(/<XInput([^>]*?)\/?>(?:<\/XInput>)?/gi,
+      (match, attrs) => {
+        // visible 속성 추출
+        const visibleMatch = attrs.match(/visible="([^"]*)"/i);
+        const visible = visibleMatch ? visibleMatch[1] : 'true';
+
+        // className 추출
+        const classMatch = attrs.match(/className="([^"]*)"/i);
+        const userClass = classMatch ? classMatch[1] : '';
+
+        // V3 스타일 클래스 조합: input + visible + userClass
+        let classes = ['input'];  // Input.scss의 기본 클래스
+        if (userClass) classes.push(userClass);
+        if (visible === 'false') {
+          classes.push('xinput-visible-hide');
+        } else {
+          classes.push('xinput-visible-show');
+        }
+
+        // 나머지 속성 변환 (visible, className 제외)
+        let remainingAttrs = attrs
+          .replace(/visible="[^"]*"/gi, '')
+          .replace(/className="[^"]*"/gi, '')
+          .trim();
+
+        // data-visible 속성 추가
+        remainingAttrs += ` data-visible="${visible}"`;
+
+        const convertedAttrs = this.convertAttributes(remainingAttrs);
+        const classAttr = `class="${classes.join(' ')}"`;
+
+        return `<input ${classAttr} ${convertedAttrs}>`;
       }
     );
 
@@ -119,7 +209,7 @@ class RodiConverter {
     // === 2단계: 일반 컴포넌트 변환 ===
     Object.entries(this.componentMap).forEach(([rodiTag, htmlTag]) => {
       // 이미 특별 처리된 컴포넌트들 제외
-      if (['xbutton', 'xradio', 'xcheckbox', 'xslider', 'xselectbox', 'xoption'].includes(rodiTag)) return;
+      if (['xbutton', 'xradio', 'xcheckbox', 'xslider', 'xinput', 'xselectbox', 'xoption'].includes(rodiTag)) return;
 
       // 여는 태그 변환
       const openRegex = new RegExp(`<${rodiTag}([^>]*)>`, 'gi');
