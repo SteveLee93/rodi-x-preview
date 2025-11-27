@@ -14,7 +14,7 @@ const path = require('path');
  * V3 프로젝트 루트 경로
  * 모든 경로의 기준점이 됩니다.
  */
-const V3_ROOT = 'C:/git/v3/v3';
+const V3_ROOT = 'C:/git/v3';
 
 /**
  * Rodi 웹 서비스 경로

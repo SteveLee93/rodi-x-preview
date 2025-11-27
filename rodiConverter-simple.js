@@ -14,10 +14,10 @@ class RodiConverter {
   constructor() {
     // Rodi-X 컴포넌트 → HTML 태그 매핑
     this.componentMap = {
-      // 기본 컴포넌트
-      'xtable': 'table',
-      'xrow': 'tr',
-      'xcell': 'td',
+      // 기본 컴포넌트 (V3와 동일한 구조)
+      'xtable': 'section',  // V3: <section class="table">
+      'xrow': 'div',        // V3: <div class="row">
+      'xcell': 'div',       // V3: <div class="cell h-cell|h-column|cell-content">
       'xinput': 'input',
       'xbutton': 'button',
       'xlabel': 'label',
@@ -62,6 +62,10 @@ class RodiConverter {
     let result = htmlString;
 
     try {
+
+    // === 0단계: HTML 문서 구조 정리 ===
+    // 완전한 HTML 문서에서 body 내용만 추출
+    result = this.extractBodyContent(result);
 
     // === 1단계: 특별 처리가 필요한 컴포넌트들 ===
 
@@ -214,7 +218,45 @@ class RodiConverter {
       // 여는 태그 변환
       const openRegex = new RegExp(`<${rodiTag}([^>]*)>`, 'gi');
       result = result.replace(openRegex, (match, attrs) => {
-        const convertedAttrs = this.convertAttributes(attrs);
+        let convertedAttrs = this.convertAttributes(attrs);
+
+        // XTable, XRow, XCell은 V3 클래스 자동 추가
+        if (rodiTag === 'xtable') {
+          // className이 있으면 추가, 없으면 생성
+          if (convertedAttrs.includes('class=')) {
+            convertedAttrs = convertedAttrs.replace(/class="([^"]*)"/i, 'class="table $1"');
+          } else {
+            convertedAttrs = ` class="table"${convertedAttrs}`;
+          }
+        } else if (rodiTag === 'xrow') {
+          if (convertedAttrs.includes('class=')) {
+            convertedAttrs = convertedAttrs.replace(/class="([^"]*)"/i, 'class="row $1"');
+          } else {
+            convertedAttrs = ` class="row"${convertedAttrs}`;
+          }
+        } else if (rodiTag === 'xcell') {
+          // XCell은 isHeader와 isColumnHeader에 따라 클래스 결정
+          // V3 Cell.js: <div className={cx('cell', cellClass, ...)}>
+          const isHeader = /isHeader="true"/i.test(attrs) || /data-header="true"/i.test(convertedAttrs);
+          const isColumnHeader = /isColumnHeader="true"/i.test(attrs) || /data-column-header="true"/i.test(convertedAttrs);
+
+          let cellClass = isColumnHeader ? 'h-column' : (isHeader ? 'h-cell' : 'cell-content');
+
+          // V3처럼 'cell' 클래스는 항상 포함
+          const fullClasses = `cell ${cellClass}`;
+
+          if (convertedAttrs.includes('class=')) {
+            convertedAttrs = convertedAttrs.replace(/class="([^"]*)"/i, `class="${fullClasses} $1"`);
+          } else {
+            convertedAttrs = ` class="${fullClasses}"${convertedAttrs}`;
+          }
+        }
+
+        // convertedAttrs가 비어있지 않으면 앞에 공백 추가
+        if (convertedAttrs && !convertedAttrs.startsWith(' ')) {
+          convertedAttrs = ' ' + convertedAttrs;
+        }
+
         return `<${htmlTag}${convertedAttrs}>`;
       });
 
@@ -276,6 +318,31 @@ class RodiConverter {
       componentCounts: {},
       errors: []
     };
+  }
+
+  /**
+   * HTML 문서에서 body 내용과 style 태그만 추출
+   * @param {string} htmlString - HTML 문서
+   * @returns {string} body 내용과 style 태그
+   */
+  extractBodyContent(htmlString) {
+    // <style> 태그 추출 (head 안의 스타일)
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    const styles = [];
+    let match;
+    while ((match = styleRegex.exec(htmlString)) !== null) {
+      styles.push(match[0]);
+    }
+
+    // <body> 태그 내용 추출
+    const bodyMatch = htmlString.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    let bodyContent = bodyMatch ? bodyMatch[1] : htmlString;
+
+    // body 내용에서 style 태그 제거 (이미 추출했으므로)
+    bodyContent = bodyContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+    // style 태그들을 body 내용 앞에 추가
+    return styles.join('\n') + '\n' + bodyContent;
   }
 
   convertAttributes(attrString) {

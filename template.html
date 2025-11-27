@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rodi-X Preview - {{FILE_NAME}}</title>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- V3 프로젝트의 실제 RodiX 컴포넌트 스타일 -->
+    <style id="rodix-component-styles">
+/* ============================================
+   RodiX Component Styles from V3 Project
+   로드된 컴포넌트: {{LOADED_COUNT}}개
+============================================ */
+
+{{RODIX_STYLES}}
+    </style>
+
+    <!-- V3 스타일 강제 적용 -->
+    <style id="v3-style-override">
+.btn {
+  line-height: inherit !important;
+}
+
+button.PID-gain-table-btn.btn,
+.PID-gain-table-btn.btn.primary {
+  line-height: normal !important;
+  height: auto !important;
+}
+
+.nav-tab .btn {
+  line-height: inherit !important;
+  padding: 11px 18px !important;
+  height: auto !important;
+  min-height: 45px;
+}
+    </style>
+
+    {{DEBUG_STYLES}}
+</head>
+<body>
+    {{DEBUG_HEADER}}
+
+    {{DEBUG_TOOLBAR}}
+
+    {{DEBUG_PANELS}}
+
+    <div class="preview-content">
+        {{CONVERTED_HTML}}
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Socket.IO 연결 관리
+        socket.on('connect', () => {
+            console.log('[LINK] 서버에 연결되었습니다');
+            {{DEBUG_STATUS_UPDATE_CONNECTED}}
+        });
+
+        socket.on('disconnect', () => {
+            console.log('[ERROR] 서버 연결이 끊어졌습니다');
+            {{DEBUG_STATUS_UPDATE_DISCONNECTED}}
+        });
+
+        socket.on('file-changed', (data) => {
+            console.log('[SOURCE] 파일이 변경되었습니다:', data.file);
+            document.body.style.opacity = '0.7';
+            setTimeout(() => {
+                window.location.reload();
+            }, 200);
+        });
+
+        socket.on('file-deleted', (data) => {
+            alert('[WARN] 프리뷰 중인 파일이 삭제되었습니다!');
+            console.error('[ERROR] 파일 삭제:', data.file);
+        });
+
+        {{DEBUG_FUNCTIONS}}
+
+        console.log('[READY] Rodi-X Preview 클라이언트 준비 완료');
+
+        // ============================================
+        // V3 RodiX API 에뮬레이션
+        // ============================================
+        {{RODIX_EMULATOR}}
+    </script>
+
+    <!-- V3 플러그인 JavaScript 에뮬레이션 -->
+    <script>
+{{PLUGIN_JS}}
+    </script>
+</body>
+</html>
